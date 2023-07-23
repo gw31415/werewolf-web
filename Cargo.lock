@@ -1328,6 +1328,7 @@ dependencies = [
  "actix-files",
  "actix-web",
  "actix-web-actors",
+ "thiserror",
  "werewolf",
 ]
 

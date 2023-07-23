@@ -5,7 +5,7 @@ use actix_web_actors::ws;
 
 use werewolf::master::Token;
 
-use crate::master_router::{self, Identifier};
+use crate::master_router::{self, Identifier, SessionError};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -61,7 +61,7 @@ impl Actor for WsPlayerSession {
             .into_actor(self)
             .then(|res, act, ctx| {
                 match res {
-                    Ok(res) => {
+                    Ok(Ok(res)) => {
                         act.id = Identifier::Token({
                             use std::mem::MaybeUninit;
                             let mut token: [MaybeUninit<u8>; 32] =
@@ -70,9 +70,47 @@ impl Actor for WsPlayerSession {
                                 *slot = MaybeUninit::new(res[i]);
                             }
                             unsafe { std::mem::transmute(token) }
-                        })
+                        });
                     }
-                    _ => ctx.stop(),
+                    Ok(Err(err)) => {
+                        use ws::*;
+                        use SessionError::*;
+                        let reason = match err {
+                            MasterError(werewolf::master::Error::NameAlreadyRegistered(name)) => {
+                                CloseReason {
+                                    code: CloseCode::Error,
+                                    description: Some(format!(
+                                        "name '{name}' is already registered."
+                                    )),
+                                }
+                            }
+                            InvalidToken => CloseReason {
+                                code: CloseCode::Error,
+                                description: Some("invalid token.".to_string()),
+                            },
+                            MasterError(werewolf::master::Error::GameAlreadyStarted) => {
+                                CloseReason {
+                                    code: CloseCode::Error,
+                                    description: Some("the game has already started.".to_string()),
+                                }
+                            }
+                            MasterError(werewolf::master::Error::AuthenticationFailed) => {
+                                CloseReason {
+                                    code: CloseCode::Error,
+                                    description: Some("authentication failed.".to_string()),
+                                }
+                            }
+                            MasterError(err) => CloseReason {
+                                code: CloseCode::Error,
+                                description: Some(format!("the error of master-side: {:0}.", err)),
+                            },
+                        };
+                        ctx.close(Some(reason));
+                        ctx.stop();
+                    }
+                    _ => {
+                        ctx.stop();
+                    }
                 }
                 fut::ready(())
             })
@@ -80,8 +118,9 @@ impl Actor for WsPlayerSession {
     }
 
     fn stopping(&mut self, _: &mut Self::Context) -> Running {
-        let Identifier::Token(token) = self.id else { unreachable!(); };
-        self.addr.do_send(master_router::Disconnect { token });
+        if let Identifier::Token(token) = self.id {
+            self.addr.do_send(master_router::Disconnect { token });
+        }
         Running::Stop
     }
 }
