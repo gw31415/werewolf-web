@@ -110,23 +110,23 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                                             Ok(Err(err)) => {
                                                 use SessionError::*;
                                                 let err = match err {
-                                                MasterError(
-                                                    werewolf::master::Error::NameAlreadyRegistered(
-                                                        name,
-                                                    ),
-                                                ) => ResponseErr::NameAlreadyRegistered(name),
-                                                InvalidToken => ResponseErr::InvalidToken,
-                                                MasterError(
-                                                    werewolf::master::Error::GameAlreadyStarted,
-                                                ) => ResponseErr::GameAlreadyStarted,
-                                                MasterError(
-                                                    werewolf::master::Error::AuthenticationFailed,
-                                                ) => ResponseErr::AuthenticationFailed,
-                                                _ => {
-                                                    println!("unreachable code");
-                                                    return fut::ready(());
-                                                }
-                                            };
+                                                    MasterError(
+                                                        werewolf::master::Error::NameAlreadyRegistered(
+                                                            name,
+                                                        ),
+                                                    ) => ResponseErr::NameAlreadyRegistered(name),
+                                                    InvalidToken => ResponseErr::InvalidToken,
+                                                    MasterError(
+                                                        werewolf::master::Error::GameAlreadyStarted,
+                                                    ) => ResponseErr::GameAlreadyStarted,
+                                                    MasterError(
+                                                        werewolf::master::Error::AuthenticationFailed,
+                                                    ) => ResponseErr::AuthenticationFailed,
+                                                    _ => {
+                                                        println!("unreachable code");
+                                                        return fut::ready(());
+                                                    },
+                                                };
                                                 let error = Response::Error(err);
                                                 let res_str =
                                                     serde_json::to_string(&error).unwrap();
@@ -182,8 +182,7 @@ pub enum Response {
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ResponseOk {
-}
+pub enum ResponseOk {}
 
 #[derive(Serialize, Deserialize, Error, Debug)]
 #[serde(rename_all = "camelCase")]
