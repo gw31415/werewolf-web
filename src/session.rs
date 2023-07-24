@@ -172,7 +172,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
 }
 
 /// クライアントからのリクエストの構造体
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Request {
     Connect(Identifier),
@@ -180,7 +180,7 @@ pub enum Request {
 }
 
 /// クライアントへ送る構造体
-#[derive(Serialize, Deserialize, Message)]
+#[derive(Serialize, Message)]
 #[rtype("()")]
 #[serde(rename_all = "camelCase")]
 pub enum Response {
@@ -188,11 +188,11 @@ pub enum Response {
     Error(ResponseErr),
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ResponseOk {}
 
-#[derive(Serialize, Deserialize, Error, Debug)]
+#[derive(Serialize, Error, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ResponseErr {
     #[error("Json parse error: {0}")]
@@ -207,6 +207,8 @@ pub enum ResponseErr {
     GameAlreadyStarted,
     #[error("You are already logged in.")]
     AlreadyLoggedIn,
+    #[error("Error of werewolf game: {0}")]
+    Werewolf(werewolf::Error),
 }
 
 /// Message handler from Master to Client

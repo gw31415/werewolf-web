@@ -42,6 +42,36 @@ pub struct Disconnect {
     pub token: Token,
 }
 
+/// 切断する
+#[derive(Message)]
+#[rtype(result = "()")]
+pub struct Werewolf {
+    pub token: Token,
+    pub body: werewolf::request::Any,
+}
+
+impl Handler<Werewolf> for MasterRouter {
+    type Result = ();
+    fn handle(&mut self, msg: Werewolf, _: &mut Self::Context) -> Self::Result {
+        // TODO: Stateを各ユーザに配信する
+        let Werewolf { token, body } = msg;
+        let (master, addr) = {
+            let name = self.routes.get(&token).unwrap();
+            let MasterInstance { master, online } = self.masters.get_mut(name).unwrap();
+            let addr = online.get(&token).unwrap();
+            (master, addr)
+        };
+        let mut master = master.lock().unwrap();
+        let Ok(permission) = master.login(&token) else {
+            addr.do_send(Response::Error(crate::session::ResponseErr::InvalidToken));
+            return;
+        };
+        if let Err(err) = permission.execute(body) {
+            addr.do_send(Response::Error(crate::session::ResponseErr::Werewolf(err)));
+        }
+    }
+}
+
 type MasterName = String;
 
 /// マスターへマップするActor。
