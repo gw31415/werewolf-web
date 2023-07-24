@@ -74,6 +74,7 @@ impl Handler<Connect> for MasterRouter {
                     // 既にmasterが存在している場合
                     master
                 } else {
+                    println!("NewMaster: '{mastername}'");
                     // masterの新規作成
                     masters.insert(mastername.clone(), Default::default());
 
@@ -138,7 +139,7 @@ impl Handler<Disconnect> for MasterRouter {
         if online_members_is_empty {
             // Remove master
             self.masters.lock().unwrap().remove(&mastername);
-            println!("Master named '{mastername}' removed.");
+            println!("EndMaster: '{mastername}'");
 
             {
                 // Cleaning routes
