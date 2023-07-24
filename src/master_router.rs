@@ -1,11 +1,13 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashMap,
     sync::{Arc, Mutex},
 };
 use thiserror::Error;
 
 use actix::prelude::*;
 use werewolf::{master::Token, state::Name, Master};
+
+use crate::session::Response;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -22,10 +24,18 @@ pub enum SessionError {
     InvalidToken,
 }
 
+/// 接続する。ゲーム情報の登録を行うのと同義。
 #[derive(Message)]
 #[rtype(result = "Result<Vec<u8>, SessionError>")]
-pub struct Connect(pub Identifier);
+pub struct Connect {
+    /// ログイン or サインアップ情報
+    /// Tokenの場合はログイン、名前とマスター名の場合はサインアップを行う
+    pub id: Identifier,
+    /// 通信のためのアドレス
+    pub addr: Recipient<Response>,
+}
 
+/// 切断する
 #[derive(Message)]
 #[rtype(result = "Result<(), SessionError>")]
 pub struct Disconnect {
@@ -48,7 +58,7 @@ struct MasterInstance {
     /// マスターの実体
     master: Arc<Mutex<Master>>,
     /// コネクションが保たれているユーザーのリスト
-    online: HashSet<Token>,
+    online: HashMap<Token, Recipient<Response>>,
 }
 
 impl MasterRouter {
@@ -68,7 +78,7 @@ impl Handler<Connect> for MasterRouter {
     type Result = Result<Vec<u8>, SessionError>;
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
-        let (token, online) = match msg.0 {
+        let (token, online) = match msg.id {
             Identifier::Signup {
                 name,
                 master: mastername,
@@ -99,7 +109,7 @@ impl Handler<Connect> for MasterRouter {
         };
 
         // onlineの追加
-        online.insert(token);
+        online.insert(token, msg.addr);
 
         Ok(token.to_vec())
     }

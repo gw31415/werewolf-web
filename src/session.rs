@@ -85,13 +85,18 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                         Request::Connect(id) => {
                             if self.token.is_some() {
                                 // 既に接続済みの場合
-                                let error = Response::Error(ResponseErr::AlreadyLoginnedIn);
-                                let res_str = serde_json::to_string(&error).unwrap();
-                                ctx.text(res_str);
+                                Handler::handle(
+                                    self,
+                                    Response::Error(ResponseErr::AlreadyLoginnedIn),
+                                    ctx,
+                                );
                             } else {
                                 // 未接続の場合
                                 self.addr
-                                    .send(master_router::Connect(id))
+                                    .send(master_router::Connect {
+                                        id,
+                                        addr: ctx.address().recipient(),
+                                    })
                                     .into_actor(self)
                                     .then(|res, act, ctx| {
                                         match res {
@@ -146,9 +151,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                         }
                     }
                 } else {
-                    let error: Response = Response::Error(ResponseErr::JsonParse(text.to_string()));
-                    let res_str = serde_json::to_string(&error).unwrap();
-                    ctx.text(res_str);
+                    Handler::handle(
+                        self,
+                        Response::Error(ResponseErr::JsonParse(text.to_string())),
+                        ctx,
+                    );
                 }
             }
             ws::Message::Binary(_) => println!("Unexpected binary"),
@@ -173,7 +180,8 @@ pub enum Request {
 }
 
 /// クライアントへ送る構造体
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Message)]
+#[rtype("()")]
 #[serde(rename_all = "camelCase")]
 pub enum Response {
     Success(ResponseOk),
@@ -201,8 +209,11 @@ pub enum ResponseErr {
     AlreadyLoginnedIn,
 }
 
-// /// Message handler from Master to Client
-// impl Handler<master_router::State> for WsPlayerSession {
-//     fn handle(&mut self, msg: master_router::State, ctx: &mut Self::Context) -> Self::Result {
-//     }
-// }
+/// Message handler from Master to Client
+impl Handler<Response> for WsPlayerSession {
+    type Result = ();
+    fn handle(&mut self, msg: Response, ctx: &mut Self::Context) -> Self::Result {
+        let res_str = serde_json::to_string(&msg).unwrap();
+        ctx.text(res_str);
+    }
+}
