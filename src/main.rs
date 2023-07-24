@@ -19,11 +19,7 @@ async fn werewolf_ws(
     srv: web::Data<Addr<MasterRouter>>,
 ) -> Result<HttpResponse, Error> {
     ws::start(
-        session::WsPlayerSession::new(
-            "name".to_string(),
-            "master".to_string(),
-            srv.get_ref().clone(),
-        ),
+        session::WsPlayerSession::new(srv.get_ref().clone()),
         &req,
         stream,
     )

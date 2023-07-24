@@ -7,7 +7,8 @@ use thiserror::Error;
 use actix::prelude::*;
 use werewolf::{master::Token, state::Name, Master};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Identifier {
     Token(Token),
     Signup { name: Name, master: MasterName },
