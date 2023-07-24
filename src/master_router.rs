@@ -75,10 +75,7 @@ impl Handler<Connect> for MasterRouter {
             } => {
                 // 新規サインアップ
                 let MasterInstance { master, online } =
-                    self.masters.entry(mastername.clone()).or_insert({
-                        println!("NewMaster: '{mastername}'");
-                        Default::default()
-                    });
+                    self.masters.entry(mastername.clone()).or_default();
 
                 let token = master.lock().unwrap().signup(name)?;
                 // routesの追加
@@ -126,7 +123,6 @@ impl Handler<Disconnect> for MasterRouter {
         if online.is_empty() {
             // Remove master
             self.masters.remove(&mastername);
-            println!("EndMaster: '{mastername}'");
 
             // Clean routes
             self.routes.retain(|_, v| v != &mastername);
