@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use werewolf::master::Token;
 
-use crate::master_router::{self, Identifier, SessionError};
+use crate::master_router::{self, Identifier};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -113,25 +113,6 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                                                 });
                                             }
                                             Ok(Err(err)) => {
-                                                use SessionError::*;
-                                                let err = match err {
-                                                    MasterError(
-                                                        werewolf::master::Error::NameAlreadyRegistered(
-                                                            name,
-                                                        ),
-                                                    ) => ResponseErr::NameAlreadyRegistered(name),
-                                                    InvalidToken => ResponseErr::InvalidToken,
-                                                    MasterError(
-                                                        werewolf::master::Error::GameAlreadyStarted,
-                                                    ) => ResponseErr::GameAlreadyStarted,
-                                                    MasterError(
-                                                        werewolf::master::Error::AuthenticationFailed,
-                                                    ) => ResponseErr::AuthenticationFailed,
-                                                    _ => {
-                                                        println!("unreachable code");
-                                                        return fut::ready(());
-                                                    },
-                                                };
                                                 let error = Response::Error(err);
                                                 let res_str =
                                                     serde_json::to_string(&error).unwrap();
@@ -197,18 +178,12 @@ pub enum ResponseOk {}
 pub enum ResponseErr {
     #[error("Json parse error: {0}")]
     JsonParse(String),
-    #[error("the game has already started.")]
-    InvalidToken,
-    #[error("name '{0}' is already registered.")]
-    NameAlreadyRegistered(String),
-    #[error("authentication failed.")]
-    AuthenticationFailed,
-    #[error("the game has already started.")]
-    GameAlreadyStarted,
     #[error("You are already logged in.")]
     AlreadyLoggedIn,
     #[error("Error of werewolf game: {0}")]
-    Werewolf(werewolf::Error),
+    Werewolf(#[from] werewolf::Error),
+    #[error("Session error: {0}")]
+    Session(#[from] werewolf::master::Error),
 }
 
 /// Message handler from Master to Client

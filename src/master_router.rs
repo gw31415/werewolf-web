@@ -2,12 +2,11 @@ use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
-use thiserror::Error;
 
 use actix::prelude::*;
 use werewolf::{master::Token, state::Name, Master};
 
-use crate::session::Response;
+use crate::session::{Response, ResponseErr};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -16,17 +15,9 @@ pub enum Identifier {
     Signup { name: Name, master: MasterName },
 }
 
-#[derive(MessageResponse, Debug, Error)]
-pub enum SessionError {
-    #[error("WerewolfError: {0}")]
-    MasterError(#[from] werewolf::master::Error),
-    #[error("Invalid token.")]
-    InvalidToken,
-}
-
 /// 接続する。ゲーム情報の登録を行うのと同義。
 #[derive(Message)]
-#[rtype(result = "Result<Vec<u8>, SessionError>")]
+#[rtype(result = "Result<Vec<u8>, ResponseErr>")]
 pub struct Connect {
     /// ログイン or サインアップ情報
     /// Tokenの場合はログイン、名前とマスター名の場合はサインアップを行う
@@ -37,7 +28,7 @@ pub struct Connect {
 
 /// 切断する
 #[derive(Message)]
-#[rtype(result = "Result<(), SessionError>")]
+#[rtype(result = "Result<(), ResponseErr>")]
 pub struct Disconnect {
     pub token: Token,
 }
@@ -63,7 +54,7 @@ impl Handler<Werewolf> for MasterRouter {
         };
         let mut master = master.lock().unwrap();
         let Ok(permission) = master.login(&token) else {
-            addr.do_send(Response::Error(crate::session::ResponseErr::InvalidToken));
+            addr.do_send(Response::Error(ResponseErr::Session(werewolf::master::Error::AuthenticationFailed)));
             return;
         };
         if let Err(err) = permission.execute(body) {
@@ -105,7 +96,7 @@ impl Actor for MasterRouter {
 }
 
 impl Handler<Connect> for MasterRouter {
-    type Result = Result<Vec<u8>, SessionError>;
+    type Result = Result<Vec<u8>, ResponseErr>;
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
         let (token, online) = match msg.id {
@@ -132,7 +123,7 @@ impl Handler<Connect> for MasterRouter {
                         online
                     } else {
                         // 存在の確認
-                        return Err(SessionError::InvalidToken);
+                        Err(werewolf::master::Error::AuthenticationFailed)?
                     }
                 })
             }
@@ -146,12 +137,12 @@ impl Handler<Connect> for MasterRouter {
 }
 
 impl Handler<Disconnect> for MasterRouter {
-    type Result = Result<(), SessionError>;
+    type Result = Result<(), ResponseErr>;
 
     fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) -> Self::Result {
         let mastername = {
             let Some(mastername) = self.routes.get(&msg.token) else {
-                return Err(SessionError::InvalidToken);
+                Err(werewolf::master::Error::AuthenticationFailed)?
             };
             mastername.to_owned()
         };
