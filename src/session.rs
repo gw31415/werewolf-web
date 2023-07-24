@@ -85,7 +85,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                         Request::Connect(id) => {
                             if self.token.is_some() {
                                 // 既に接続済みの場合
-                                let error: Response = Err(ResponseErr::AlreadyLoginnedIn);
+                                let error = Response::Error(ResponseErr::AlreadyLoginnedIn);
                                 let res_str = serde_json::to_string(&error).unwrap();
                                 ctx.text(res_str);
                             } else {
@@ -123,10 +123,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                                                     werewolf::master::Error::AuthenticationFailed,
                                                 ) => ResponseErr::AuthenticationFailed,
                                                 _ => {
+                                                    println!("unreachable code");
                                                     return fut::ready(());
                                                 }
                                             };
-                                                let error: Response = Err(err);
+                                                let error = Response::Error(err);
                                                 let res_str =
                                                     serde_json::to_string(&error).unwrap();
                                                 ctx.text(res_str);
@@ -145,7 +146,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                         }
                     }
                 } else {
-                    let error: Response = Err(ResponseErr::JsonParse(text.to_string()));
+                    let error: Response = Response::Error(ResponseErr::JsonParse(text.to_string()));
                     let res_str = serde_json::to_string(&error).unwrap();
                     ctx.text(res_str);
                 }
@@ -172,12 +173,16 @@ pub enum Request {
 }
 
 /// クライアントへ送る構造体
-pub type Response = Result<ResponseOk, ResponseErr>;
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Response {
+    Success(ResponseOk),
+    Error(ResponseErr),
+}
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ResponseOk {
-
 }
 
 #[derive(Serialize, Deserialize, Error, Debug)]
