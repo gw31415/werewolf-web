@@ -87,7 +87,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                                 // 既に接続済みの場合
                                 Handler::handle(
                                     self,
-                                    Response::Error(ResponseErr::AlreadyLoginnedIn),
+                                    Response::Error(ResponseErr::AlreadyLoggedIn),
                                     ctx,
                                 );
                             } else {
@@ -206,7 +206,7 @@ pub enum ResponseErr {
     #[error("the game has already started.")]
     GameAlreadyStarted,
     #[error("You are already logged in.")]
-    AlreadyLoginnedIn,
+    AlreadyLoggedIn,
 }
 
 /// Message handler from Master to Client
