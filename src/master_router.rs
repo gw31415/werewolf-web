@@ -37,20 +37,24 @@ type MasterName = String;
 /// マスターへマップするActor。
 #[derive(Clone)]
 pub struct MasterRouter {
-    /// マスターの一覧
-    masters: HashMap<MasterName, Arc<Mutex<Master>>>,
+    /// 待機中マスターの一覧
+    masters: HashMap<MasterName, MasterInstance>,
     /// トークンからマスターへのマップ
     routes: HashMap<Token, MasterName>,
-    /// コネクションが保たれているユーザーがどのマスターに所属しているか。
-    /// マスターの掃除に使う
-    online: HashMap<MasterName, HashSet<Token>>,
+}
+
+#[derive(Clone, Default)]
+struct MasterInstance {
+    /// マスターの実体
+    master: Arc<Mutex<Master>>,
+    /// コネクションが保たれているユーザーのリスト
+    online: HashSet<Token>,
 }
 
 impl MasterRouter {
     pub fn new() -> MasterRouter {
         MasterRouter {
             masters: Default::default(),
-            online: Default::default(),
             routes: Default::default(),
         }
     }
@@ -64,33 +68,31 @@ impl Handler<Connect> for MasterRouter {
     type Result = Result<Vec<u8>, SessionError>;
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
-        let (token, mastername) = match msg.0 {
+        let (token, online) = match msg.0 {
             Identifier::Signup {
                 name,
                 master: mastername,
             } => {
                 // 新規サインアップ
-                let master = if let Some(master) = self.masters.get_mut(&mastername) {
-                    // 既にmasterが存在している場合
-                    master
-                } else {
-                    println!("NewMaster: '{mastername}'");
-                    // masterの新規作成
-                    self.masters.insert(mastername.clone(), Default::default());
+                let MasterInstance { master, online } =
+                    self.masters.entry(mastername.clone()).or_insert({
+                        println!("NewMaster: '{mastername}'");
+                        Default::default()
+                    });
 
-                    // online欄の作成と初期化
-                    self.online.insert(mastername.clone(), HashSet::new());
-                    // masterを返す
-                    self.masters.get_mut(&mastername).unwrap()
-                };
                 let token = master.lock().unwrap().signup(name)?;
-                (token, mastername)
+                // routesの追加
+                self.routes.insert(token, mastername);
+
+                (token, online)
             }
             Identifier::Token(token) => {
                 // 再接続
                 (token, {
                     if let Some(mastername) = self.routes.get(&token) {
-                        mastername.to_owned()
+                        let MasterInstance { online, .. } =
+                            self.masters.get_mut(mastername).unwrap();
+                        online
                     } else {
                         // 存在の確認
                         return Err(SessionError::InvalidToken);
@@ -100,9 +102,7 @@ impl Handler<Connect> for MasterRouter {
         };
 
         // onlineの追加
-        self.online.get_mut(&mastername).unwrap().insert(token);
-        // routesの追加
-        self.routes.insert(token, mastername);
+        online.insert(token);
 
         Ok(token.to_vec())
     }
@@ -119,32 +119,17 @@ impl Handler<Disconnect> for MasterRouter {
             mastername.to_owned()
         };
 
-        let online_members_is_empty = {
-            let online_members = self.online.get_mut(&mastername).unwrap();
-            online_members.remove(&msg.token);
-            online_members.is_empty()
-        };
+        let MasterInstance { online, .. } = self.masters.get_mut(&mastername).unwrap();
 
-        if online_members_is_empty {
+        online.remove(&msg.token);
+
+        if online.is_empty() {
             // Remove master
             self.masters.remove(&mastername);
             println!("EndMaster: '{mastername}'");
 
-            {
-                // Cleaning routes
-                let mut keys = Vec::<Token>::new();
-                for (k, v) in self.routes.iter() {
-                    if v == &mastername {
-                        keys.push(*k);
-                    }
-                }
-                for k in keys {
-                    self.routes.remove(&k);
-                }
-            }
-
-            // Remove empty record of online
-            self.online.remove(&mastername);
+            // Clean routes
+            self.routes.retain(|_, v| v != &mastername);
         }
         Ok(())
     }
