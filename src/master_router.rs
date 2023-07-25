@@ -49,17 +49,19 @@ impl Handler<Werewolf> for MasterRouter {
             let name = self.routes.get(&token).unwrap();
             self.masters.get_mut(name).unwrap()
         };
-
-        // Stateの更新
-        let addr = online.get(&token).unwrap();
         let mut master = master.lock().unwrap();
-        let Ok(permission) = master.login(&token) else {
-            addr.do_send(Response::Error(ResponseErr::Session(werewolf::master::Error::AuthenticationFailed)));
-            return;
-        };
-        if let Err(err) = permission.execute(body) {
-            addr.do_send(Response::Error(crate::session::ResponseErr::Werewolf(err)));
-            return;
+
+        {
+            // Stateの更新
+            let addr = online.get(&token).unwrap();
+            let Ok(permission) = master.login(&token) else {
+                addr.do_send(Response::Error(ResponseErr::Session(werewolf::master::Error::AuthenticationFailed)));
+                return;
+            };
+            if let Err(err) = permission.execute(body) {
+                addr.do_send(Response::Error(crate::session::ResponseErr::Werewolf(err)));
+                return;
+            }
         }
 
         // Stateの配信
