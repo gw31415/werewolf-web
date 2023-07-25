@@ -171,7 +171,10 @@ pub enum Response {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub enum ResponseOk {}
+pub enum ResponseOk {
+    /// 状態の更新
+    UpdateState(werewolf::state::State),
+}
 
 #[derive(Serialize, Error, Debug)]
 #[serde(rename_all = "camelCase")]

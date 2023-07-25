@@ -6,7 +6,7 @@ use std::{
 use actix::prelude::*;
 use werewolf::{master::Token, state::Name, Master};
 
-use crate::session::{Response, ResponseErr};
+use crate::session::{Response, ResponseErr, ResponseOk};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -33,7 +33,7 @@ pub struct Disconnect {
     pub token: Token,
 }
 
-/// 切断する
+/// Werewolfゲームマスターにリクエストを送信する
 #[derive(Message)]
 #[rtype(result = "()")]
 pub struct Werewolf {
@@ -44,14 +44,14 @@ pub struct Werewolf {
 impl Handler<Werewolf> for MasterRouter {
     type Result = ();
     fn handle(&mut self, msg: Werewolf, _: &mut Self::Context) -> Self::Result {
-        // TODO: Stateを各ユーザに配信する
         let Werewolf { token, body } = msg;
-        let (master, addr) = {
+        let MasterInstance { master, online } = {
             let name = self.routes.get(&token).unwrap();
-            let MasterInstance { master, online } = self.masters.get_mut(name).unwrap();
-            let addr = online.get(&token).unwrap();
-            (master, addr)
+            self.masters.get_mut(name).unwrap()
         };
+
+        // Stateの更新
+        let addr = online.get(&token).unwrap();
         let mut master = master.lock().unwrap();
         let Ok(permission) = master.login(&token) else {
             addr.do_send(Response::Error(ResponseErr::Session(werewolf::master::Error::AuthenticationFailed)));
@@ -59,6 +59,15 @@ impl Handler<Werewolf> for MasterRouter {
         };
         if let Err(err) = permission.execute(body) {
             addr.do_send(Response::Error(crate::session::ResponseErr::Werewolf(err)));
+            return;
+        }
+
+        // Stateの配信
+        for (token, addr) in online.iter() {
+            let permission = master.login(token).unwrap();
+            let state = permission.view_state();
+            // NOTE: 更新の必要のあるユーザーのみに配信するかどうか
+            addr.do_send(Response::Success(ResponseOk::UpdateState(state)));
         }
     }
 }
