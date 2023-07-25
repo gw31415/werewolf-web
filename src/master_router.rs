@@ -4,7 +4,11 @@ use std::{
 };
 
 use actix::prelude::*;
-use werewolf::{master::Token, state::Name, Master};
+use werewolf::{
+    master::Token,
+    state::{Name, State},
+    Master,
+};
 
 use crate::session::{Response, ResponseErr, ResponseOk};
 
@@ -53,23 +57,25 @@ impl Handler<Werewolf> for MasterRouter {
 
         {
             // Stateの更新
-            let addr = online.get(&token).unwrap();
+            let connection = online.get(&token).unwrap();
             let Ok(permission) = master.login(&token) else {
-                addr.do_send(Response::Error(ResponseErr::Session(werewolf::master::Error::AuthenticationFailed)));
+                connection.addr.do_send(Response::Error(ResponseErr::Session(werewolf::master::Error::AuthenticationFailed)));
                 return;
             };
             if let Err(err) = permission.execute(body) {
-                addr.do_send(Response::Error(crate::session::ResponseErr::Werewolf(err)));
+                connection
+                    .addr
+                    .do_send(Response::Error(crate::session::ResponseErr::Werewolf(err)));
                 return;
             }
         }
 
         // Stateの配信
-        for (token, addr) in online.iter() {
+        for (token, connection) in online.iter_mut() {
             let permission = master.login(token).unwrap();
             let state = permission.view_state();
             // NOTE: 更新の必要のあるユーザーのみに配信するかどうか
-            addr.do_send(Response::Success(ResponseOk::UpdateState(state)));
+            connection.update_state(state);
         }
     }
 }
@@ -85,12 +91,42 @@ pub struct MasterRouter {
     routes: HashMap<Token, MasterName>,
 }
 
+/// マスターの実体と付随する接続中ユーザーリストを保持。
 #[derive(Clone, Default)]
 struct MasterInstance {
     /// マスターの実体
     master: Arc<Mutex<Master>>,
     /// コネクションが保たれているユーザーのリスト
-    online: HashMap<Token, Recipient<Response>>,
+    online: HashMap<Token, Connection>,
+}
+
+/// 現在オンラインの接続先
+#[derive(Clone)]
+struct Connection {
+    /// アドレス
+    addr: Recipient<Response>,
+    /// 前回送信したState
+    prev_state: Option<State>,
+}
+
+impl Connection {
+    /// 新規 Connection
+    fn new(addr: Recipient<Response>) -> Self {
+        Self {
+            addr,
+            prev_state: None,
+        }
+    }
+
+    /// Stateの更新がある場合送信する。
+    /// Stateのフィルタリングはしないので注意すること。
+    fn update_state(&mut self, state: State) {
+        if Some(&state) != self.prev_state.as_ref() {
+            self.addr
+                .do_send(Response::Success(ResponseOk::State(state.clone())));
+            self.prev_state = Some(state);
+        }
+    }
 }
 
 impl MasterRouter {
@@ -141,7 +177,7 @@ impl Handler<Connect> for MasterRouter {
         };
 
         // onlineの追加
-        online.insert(token, msg.addr);
+        online.insert(token, Connection::new(msg.addr));
 
         Ok(Box::new(token))
     }

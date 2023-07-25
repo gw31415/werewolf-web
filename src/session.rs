@@ -171,7 +171,7 @@ pub enum Response {
 #[serde(rename_all = "camelCase")]
 pub enum ResponseOk {
     /// 状態の更新
-    UpdateState(werewolf::state::State),
+    State(werewolf::state::State),
 }
 
 #[derive(Serialize, Error, Debug)]
