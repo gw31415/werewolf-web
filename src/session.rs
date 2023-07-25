@@ -71,15 +71,16 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
             Ok(msg) => msg,
         };
 
+        use ws::Message::*;
         match msg {
-            ws::Message::Ping(msg) => {
+            Ping(msg) => {
                 self.timestamp = Instant::now();
                 ctx.pong(&msg);
             }
-            ws::Message::Pong(_) => {
+            Pong(_) => {
                 self.timestamp = Instant::now();
             }
-            ws::Message::Text(text) => {
+            Text(text) => {
                 if let Ok(req) = serde_json::from_str::<Request>(&text) {
                     match req {
                         Request::Connect(id) => {
@@ -137,15 +138,15 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                     );
                 }
             }
-            ws::Message::Binary(_) => println!("Unexpected binary"),
-            ws::Message::Close(reason) => {
+            Binary(_) => println!("Unexpected binary"),
+            Close(reason) => {
                 ctx.close(reason);
                 ctx.stop();
             }
-            ws::Message::Continuation(_) => {
+            Continuation(_) => {
                 ctx.stop();
             }
-            ws::Message::Nop => (),
+            Nop => (),
         }
     }
 }
