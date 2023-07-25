@@ -102,14 +102,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsPlayerSession {
                                         match res {
                                             Ok(Ok(res)) => {
                                                 act.token = Some({
-                                                    use std::mem::MaybeUninit;
-                                                    let mut token: [MaybeUninit<u8>; 32] = unsafe {
-                                                        MaybeUninit::uninit().assume_init()
-                                                    };
-                                                    for (i, slot) in token.iter_mut().enumerate() {
-                                                        *slot = MaybeUninit::new(res[i]);
+                                                    // Vec<u8> を Token ([u8; 32]) に変換する
+                                                    unsafe {
+                                                        *Box::from_raw(
+                                                            Box::into_raw(res) as *mut [u8; 32]
+                                                        )
                                                     }
-                                                    unsafe { std::mem::transmute(token) }
                                                 });
                                             }
                                             Ok(Err(err)) => {

@@ -17,7 +17,7 @@ pub enum Identifier {
 
 /// 接続する。ゲーム情報の登録を行うのと同義。
 #[derive(Message)]
-#[rtype(result = "Result<Vec<u8>, ResponseErr>")]
+#[rtype(result = "Result<Box<[u8]>, ResponseErr>")]
 pub struct Connect {
     /// ログイン or サインアップ情報
     /// Tokenの場合はログイン、名前とマスター名の場合はサインアップを行う
@@ -107,7 +107,7 @@ impl Actor for MasterRouter {
 }
 
 impl Handler<Connect> for MasterRouter {
-    type Result = Result<Vec<u8>, ResponseErr>;
+    type Result = Result<Box<[u8]>, ResponseErr>;
 
     fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
         let (token, online) = match msg.id {
@@ -143,7 +143,7 @@ impl Handler<Connect> for MasterRouter {
         // onlineの追加
         online.insert(token, msg.addr);
 
-        Ok(token.to_vec())
+        Ok(Box::new(token))
     }
 }
 
