@@ -1,9 +1,10 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     sync::{Arc, Mutex},
 };
 
 use actix::prelude::*;
+use futures::{future::join_all, FutureExt};
 use werewolf::{
     master::Token,
     state::{Name, State},
@@ -74,7 +75,6 @@ impl Handler<Werewolf> for MasterRouter {
         for (token, connection) in online.iter_mut() {
             let permission = master.login(token).unwrap();
             let state = permission.view_state();
-            // NOTE: 更新の必要のあるユーザーのみに配信するかどうか
             connection.update_state(state);
         }
     }
@@ -145,8 +145,9 @@ impl Actor for MasterRouter {
 impl Handler<Connect> for MasterRouter {
     type Result = Result<Box<[u8]>, ResponseErr>;
 
-    fn handle(&mut self, msg: Connect, _: &mut Context<Self>) -> Self::Result {
-        let (token, online) = match msg.id {
+    fn handle(&mut self, msg: Connect, ctx: &mut Context<Self>) -> Self::Result {
+        // データの取り出し
+        let (token, master, online, new_member) = match msg.id {
             Identifier::Signup {
                 name,
                 master: mastername,
@@ -159,25 +160,42 @@ impl Handler<Connect> for MasterRouter {
                 // routesの追加
                 self.routes.insert(token, mastername);
 
-                (token, online)
+                (token, master, online, true)
             }
             Identifier::Token(token) => {
                 // 再接続
-                (token, {
-                    if let Some(mastername) = self.routes.get(&token) {
-                        let MasterInstance { online, .. } =
-                            self.masters.get_mut(mastername).unwrap();
-                        online
-                    } else {
-                        // 存在の確認
-                        Err(werewolf::master::Error::AuthenticationFailed)?
-                    }
-                })
+                if let Some(mastername) = self.routes.get(&token) {
+                    let MasterInstance { online, master } =
+                        self.masters.get_mut(mastername).unwrap();
+                    (token, master, online, false)
+                } else {
+                    // 存在の確認
+                    Err(werewolf::master::Error::AuthenticationFailed)?
+                }
             }
         };
 
         // onlineの追加
         online.insert(token, Connection::new(msg.addr));
+
+        // 新規メンバーの通知
+        if new_member {
+            let members: HashSet<String> = master
+                .lock()
+                .unwrap()
+                .players()
+                .into_iter()
+                .map(|m| m.to_owned())
+                .collect();
+
+            join_all(online.iter_mut().map(|(_, addr)| {
+                addr.addr
+                    .send(Response::Success(ResponseOk::Members(members.clone())))
+            }))
+            .then(|_| fut::ready(()))
+            .into_actor(self)
+            .wait(ctx);
+        }
 
         Ok(Box::new(token))
     }

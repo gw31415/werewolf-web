@@ -1,11 +1,17 @@
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashSet,
+    time::{Duration, Instant},
+};
 
 use actix::prelude::*;
 use actix_web_actors::ws;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use werewolf::master::Token;
+use werewolf::{
+    master::{Config, Token},
+    state::{Name, State},
+};
 
 use crate::master_router::{self, Identifier};
 
@@ -172,7 +178,13 @@ pub enum Response {
 #[serde(rename_all = "camelCase")]
 pub enum ResponseOk {
     /// 状態の更新
-    State(werewolf::state::State),
+    State(State),
+    /// オンラインのメンバー一覧
+    Online(HashSet<Name>),
+    /// 設定
+    Config(Config),
+    /// 部屋にいるメンバー一覧
+    Members(HashSet<Name>),
 }
 
 #[derive(Serialize, Error, Debug)]
