@@ -9,7 +9,7 @@ use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use werewolf::{
-    master::{Config, Token},
+    master::Token,
     state::{Name, State},
 };
 
@@ -178,11 +178,9 @@ pub enum Response {
 #[serde(rename_all = "camelCase")]
 pub enum ResponseOk {
     /// 状態の更新
-    State(State),
+    State(Box<State>),
     /// オンラインのメンバー一覧
     Online(HashSet<Name>),
-    /// 設定
-    Config(Config),
     /// 部屋にいるメンバー一覧
     Members(HashSet<Name>),
 }

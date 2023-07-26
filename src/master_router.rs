@@ -123,7 +123,9 @@ impl Connection {
     fn update_state(&mut self, state: State) {
         if Some(&state) != self.prev_state.as_ref() {
             self.addr
-                .do_send(Response::Success(ResponseOk::State(state.clone())));
+                .do_send(Response::Success(ResponseOk::State(Box::new(
+                    state.clone(),
+                ))));
             self.prev_state = Some(state);
         }
     }
