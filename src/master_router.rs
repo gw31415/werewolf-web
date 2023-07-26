@@ -147,7 +147,7 @@ impl Handler<Connect> for MasterRouter {
 
     fn handle(&mut self, msg: Connect, ctx: &mut Context<Self>) -> Self::Result {
         // データの取り出し
-        let (token, master, online, new_member) = match msg.id {
+        let (token, master, online, new_members) = match msg.id {
             Identifier::Signup {
                 name,
                 master: mastername,
@@ -160,14 +160,23 @@ impl Handler<Connect> for MasterRouter {
                 // routesの追加
                 self.routes.insert(token, mastername);
 
-                (token, master, online, true)
+                let new_members = Some(
+                    master
+                        .lock()
+                        .unwrap()
+                        .players()
+                        .into_iter()
+                        .map(|m| m.to_owned())
+                        .collect::<HashSet<_>>(),
+                );
+                (token, master, online, new_members)
             }
             Identifier::Token(token) => {
                 // 再接続
                 if let Some(mastername) = self.routes.get(&token) {
                     let MasterInstance { online, master } =
                         self.masters.get_mut(mastername).unwrap();
-                    (token, master, online, false)
+                    (token, master, online, None)
                 } else {
                     // 存在の確認
                     Err(werewolf::master::Error::AuthenticationFailed)?
@@ -178,19 +187,25 @@ impl Handler<Connect> for MasterRouter {
         // onlineの追加
         online.insert(token, Connection::new(msg.addr));
 
-        // 新規メンバーの通知
-        if new_member {
-            let members: HashSet<String> = master
-                .lock()
-                .unwrap()
-                .players()
-                .into_iter()
-                .map(|m| m.to_owned())
+        // オンラインメンバーおよび新規メンバーの通知
+        {
+            let online_members: HashSet<String> = online
+                .iter_mut()
+                .map(|(m, _)| master.lock().unwrap().get_name(m).unwrap().to_owned())
                 .collect();
 
-            join_all(online.iter_mut().map(|(_, addr)| {
-                addr.addr
-                    .send(Response::Success(ResponseOk::Members(members.clone())))
+            join_all(online.iter_mut().flat_map(|(_, addr)| {
+                let mut fs = vec![addr.addr.send(Response::Success(ResponseOk::Online(
+                    online_members.clone(),
+                )))];
+                if let Some(members) = &new_members {
+                    // 新規メンバーがいる場合はMember一覧も通知する
+                    fs.push(
+                        addr.addr
+                            .send(Response::Success(ResponseOk::Members(members.clone()))),
+                    );
+                }
+                fs
             }))
             .then(|_| fut::ready(()))
             .into_actor(self)
@@ -204,7 +219,7 @@ impl Handler<Connect> for MasterRouter {
 impl Handler<Disconnect> for MasterRouter {
     type Result = Result<(), ResponseErr>;
 
-    fn handle(&mut self, msg: Disconnect, _: &mut Context<Self>) -> Self::Result {
+    fn handle(&mut self, msg: Disconnect, ctx: &mut Context<Self>) -> Self::Result {
         let mastername = {
             let Some(mastername) = self.routes.get(&msg.token) else {
                 Err(werewolf::master::Error::AuthenticationFailed)?
@@ -212,7 +227,7 @@ impl Handler<Disconnect> for MasterRouter {
             mastername.to_owned()
         };
 
-        let MasterInstance { online, .. } = self.masters.get_mut(&mastername).unwrap();
+        let MasterInstance { online, master } = self.masters.get_mut(&mastername).unwrap();
 
         online.remove(&msg.token);
 
@@ -222,7 +237,23 @@ impl Handler<Disconnect> for MasterRouter {
 
             // Clean routes
             self.routes.retain(|_, v| v != &mastername);
+        } else {
+            // メンバーがまだいる場合はオンラインメンバーの変更通知
+            let online_members: HashSet<String> = online
+                .iter_mut()
+                .map(|(m, _)| master.lock().unwrap().get_name(m).unwrap().to_owned())
+                .collect();
+
+            join_all(online.iter_mut().map(|(_, addr)| {
+                addr.addr.send(Response::Success(ResponseOk::Online(
+                    online_members.clone(),
+                )))
+            }))
+            .then(|_| fut::ready(()))
+            .into_actor(self)
+            .wait(ctx);
         }
+
         Ok(())
     }
 }
