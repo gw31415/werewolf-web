@@ -1,8 +1,8 @@
 import lume from "lume/mod.ts";
 import esbuild from "lume/plugins/esbuild.ts";
-import imagick from "lume/plugins/imagick.ts";
 import minify_html from "lume/plugins/minify_html.ts";
 import sass from "lume/plugins/sass.ts";
+import imagick from "lume/plugins/imagick.ts";
 
 const site = lume({
   src: "./src",
@@ -20,8 +20,9 @@ site.use(esbuild({
     treeShaking: true,
   },
 }));
-site.use(imagick());
 site.use(minify_html());
 site.use(sass());
+site.use(imagick());
+
 
 export default site;
