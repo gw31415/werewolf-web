@@ -1,39 +1,73 @@
 import { ContainerNode, render } from "preact";
-import Members from "./components/members.tsx";
-import Profile from "./components/user/profile.tsx";
+import { useEffect, useState } from "preact/hooks";
+import Header from "./components/header.tsx";
+import { css } from "https://esm.sh/@emotion/css@11.11.0";
+
+export interface AuthData {
+  name: string;
+  master: string;
+}
 
 function App() {
+  const [members, setMembers] = useState([]);
+  const [online, setOnline] = useState([]);
+  const [_state, setState] = useState(null);
+  const [auths, setAuths] = useState<AuthData | null>(null);
+  let ws: WebSocket;
+
+  useEffect(() => {
+    ws = new WebSocket("ws://localhost:3232/ws");
+    ws.addEventListener("open", () => {
+      const token = localStorage.getItem("token");
+      ws.send(JSON.stringify({
+        connect: token
+          ? {
+            token: token,
+          }
+          : {
+            signup: {
+              name: "Web Client",
+              master: "テスト",
+            },
+          },
+      }));
+    });
+    ws.addEventListener("message", (m) => {
+      const res = JSON.parse(m.data);
+      if (res.success) {
+        if (res.success.members) {
+          setMembers(res.success.members);
+        } else if (res.success.online) {
+          setOnline(res.success.online);
+        } else if (res.success.state) {
+          setState(res.success.state);
+        } else if (res.success.authenticationSuccess) {
+          localStorage.setItem(
+            "token",
+            res.success.authenticationSuccess.token,
+          );
+          setAuths({
+            master: res.success.authenticationSuccess.master,
+            name: res.success.authenticationSuccess.name,
+          });
+        }
+      } else if (res.error) {
+        if (res.error.session === "authenticationFailed") {
+          localStorage.removeItem("token");
+          setAuths(null);
+        } else {
+          console.error(res.error);
+        }
+      }
+    });
+  }, []);
   return (
     <>
-      <div style={{ display: "flex", justifyContent: "space-around" }}>
-        <Profile
-          style={{ marginTop: ".5rem" }}
-          name="ワトソン"
-          job="citizen"
-        />
-        <Members
-          online={["元太", "ワトソン"]}
-          members={[
-            "ボブ",
-            "アリス",
-            "チャーリー",
-            "元太",
-            "ワトソン",
-            "メリー",
-          ]}
-          style={{
-            fontSize: ".8rem",
-            width: "8rem",
-            minHeight: "5rem",
-            padding: ".5em",
-            borderRight: 1,
-            borderLeft: 1,
-            borderStyle: "solid",
-            borderImage:
-              "linear-gradient(to bottom, #181818, #eee, #181818) 1 100%",
-          }}
-        />
-      </div>
+      <Header
+        members={members}
+        auths={auths}
+        online={online}
+      />
     </>
   );
 }
