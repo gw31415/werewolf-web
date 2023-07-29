@@ -38,7 +38,24 @@ function App() {
   );
 }
 
+const appRoot = document.getElementById("app")!;
+appRoot.innerText = "";
+
 render(
   <App />,
-  document.getElementById("app") as ContainerNode,
+  appRoot as ContainerNode,
 );
+
+appRoot.className = css({
+  display: "flex",
+  flexDirection: "column",
+  padding: "1rem",
+  height: "100dvh",
+  "*::selection": {
+    backgroundColor: "black",
+  },
+  fontFamily: "Bellefair, 'Zen Old Mincho', Hannari, serif",
+  "@media screen and (max-width: 640px)": {
+    padding: ".5rem",
+  },
+});
