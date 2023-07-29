@@ -1,6 +1,7 @@
 import { ContainerNode, render } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import Header from "./components/header.tsx";
+import MainContent from "./components/main_content.tsx";
 import { css } from "https://esm.sh/@emotion/css@11.11.0";
 
 export interface AuthData {
@@ -67,6 +68,12 @@ function App() {
         members={members}
         auths={auths}
         online={online}
+      />
+      <MainContent
+        members={members}
+        auths={auths}
+        online={online}
+        sender={(_) => {}}
       />
     </>
   );
