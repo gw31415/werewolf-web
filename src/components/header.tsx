@@ -1,11 +1,11 @@
-import { AuthData } from "../app.tsx";
+import { NameSet } from "../app.tsx";
 import Members from "./members.tsx";
 import Profile from "./user/profile.tsx";
 
 export interface HeaderProps {
   members: string[];
   online: string[];
-  auths: AuthData | null;
+  auths: NameSet | null;
 }
 
 export default function Header(props: HeaderProps) {

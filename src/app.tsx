@@ -4,7 +4,7 @@ import Header from "./components/header.tsx";
 import MainContent from "./components/main_content.tsx";
 import { css } from "https://esm.sh/@emotion/css@11.11.0";
 
-export interface AuthData {
+export interface NameSet {
   name: string;
   master: string;
 }
@@ -13,25 +13,18 @@ function App() {
   const [members, setMembers] = useState([]);
   const [online, setOnline] = useState([]);
   const [_state, setState] = useState(null);
-  const [auths, setAuths] = useState<AuthData | null>(null);
-  let ws: WebSocket;
+  const [auths, setAuths] = useState<NameSet | null>(null);
+  let ws: WebSocket | null = null;
 
   useEffect(() => {
     ws = new WebSocket("ws://localhost:3232/ws");
     ws.addEventListener("open", () => {
       const token = localStorage.getItem("token");
-      ws.send(JSON.stringify({
-        connect: token
-          ? {
-            token: token,
-          }
-          : {
-            signup: {
-              name: "Web Client",
-              master: "テスト",
-            },
-          },
-      }));
+      if (token) {
+        ws!.send(JSON.stringify({
+          connect: { token: token },
+        }));
+      }
     });
     ws.addEventListener("message", (m) => {
       const res = JSON.parse(m.data);
@@ -73,7 +66,7 @@ function App() {
         members={members}
         auths={auths}
         online={online}
-        sender={(_) => {}}
+        sender={(req) => ws!.send(JSON.stringify(req))}
       />
     </>
   );
