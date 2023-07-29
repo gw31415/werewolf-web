@@ -12,12 +12,6 @@ export interface MembersProps {
     | undefined;
 }
 
-const tdStyle = css({
-  textAlign: "center",
-  paddingRight: ".5rem",
-  verticalAlign: "top",
-});
-
 export default function Members(props: MembersProps) {
   return (
     <div style={props.style}>
@@ -28,16 +22,24 @@ export default function Members(props: MembersProps) {
           return (
             <tr>
               <td
-                className={tdStyle}
+                className={css({
+                  textAlign: "center",
+                  paddingRight: ".5rem",
+                  height: "1em",
+                  verticalAlign: "top",
+                  span: {
+                    verticalAlign: "bottom",
+                  },
+                })}
                 style={{
                   color: isOnline ? "#4CAF50" : "#F44336",
                 }}
               >
                 <span
                   class="material-symbols-outlined"
-                  style={{ fontSize: ".7rem" }}
+                  style={{ fontSize: ".55rem" }}
                 >
-                  {isOnline ? "signal_cellular_4_bar" : "signal_cellular_off"}
+                  {isOnline ? "wifi" : "wifi_off"}
                 </span>
               </td>
               <td>{m}</td>
