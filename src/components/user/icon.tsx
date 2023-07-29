@@ -3,16 +3,6 @@ import { Job } from "./profile.tsx";
 
 export interface IconProps {
   job: Job;
-  height:
-    | string
-    | number
-    | JSX.SignalLike<string | number | undefined>
-    | undefined;
-  width:
-    | string
-    | number
-    | JSX.SignalLike<string | number | undefined>
-    | undefined;
   style?:
     | string
     | JSX.CSSProperties
@@ -31,8 +21,8 @@ export default function Icon(props: IconProps) {
   return (
     <img
       style={props.style}
-      height={props.height}
-      width={props.width}
+      height="128"
+      width="128"
       src={ref_img(props.job)}
     />
   );

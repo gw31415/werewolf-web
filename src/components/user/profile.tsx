@@ -39,8 +39,6 @@ export default function Profile(props: ProfileProps) {
             width: "3.5rem",
             height: "3.5rem",
           }}
-          height="4rem"
-          width="4rem"
           job="citizen"
         />
         <div style={{ paddingLeft: ".5rem" }}>
