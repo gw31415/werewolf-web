@@ -1,18 +1,8 @@
 import { useId } from "preact/hooks";
-import { NameSet } from "../app.tsx";
 import { css } from "https://esm.sh/@emotion/css@11.11.0";
+import { GameComponentProps, sender } from "../ws.ts";
 
-// deno-lint-ignore no-explicit-any
-export type Sender = (request: any) => void;
-
-export interface MainContentProps {
-  members: string[];
-  online: string[];
-  auths: NameSet | null;
-  sender: Sender;
-}
-
-const Form = (props: { sender: Sender }) => {
+function Form() {
   const nameInput = useId();
   const roomInput = useId();
   return (
@@ -20,11 +10,14 @@ const Form = (props: { sender: Sender }) => {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          props.sender({
+          sender({
             connect: {
               signup: {
-                name: (document.getElementById(nameInput)! as HTMLInputElement).value,
-                master: (document.getElementById(roomInput)! as HTMLInputElement).value,
+                name: (document.getElementById(nameInput)! as HTMLInputElement)
+                  .value,
+                master:
+                  (document.getElementById(roomInput)! as HTMLInputElement)
+                    .value,
               },
             },
           });
@@ -149,12 +142,12 @@ const Form = (props: { sender: Sender }) => {
       </form>
     </div>
   );
-};
+}
 
-export default function MainContent(props: MainContentProps) {
+export default function MainContent(props: GameComponentProps) {
   return (
     <div style={{ display: "flex", justifyContent: "space-around", flex: 1 }}>
-      {props.auths !== null
+      {props.logined
         ? (
           // 認証済み
           <></>
@@ -169,7 +162,7 @@ export default function MainContent(props: MainContentProps) {
             }}
           >
             <div>
-              <Form sender={props.sender} />
+              <Form />
             </div>
           </div>
         )}

@@ -1,29 +1,23 @@
-import { NameSet } from "../app.tsx";
+import { GameComponentProps } from "../ws.ts";
 import Members from "./members.tsx";
 import Profile from "./user/profile.tsx";
 
-export interface HeaderProps {
-  members: string[];
-  online: string[];
-  auths: NameSet | null;
-}
-
-export default function Header(props: HeaderProps) {
+export default function Header(props: GameComponentProps) {
   return (
     <div style={{ display: "flex", justifyContent: "space-around" }}>
-      {props.auths !== null
+      {props.logined
         ? (
           // 認証済み
           <>
             <Profile
               style={{ marginTop: ".5rem" }}
-              name={props.auths.name}
+              name={props.name}
               job="citizen"
             />
             <Members
               online={props.online}
               members={props.members}
-              master={props.auths.master}
+              master={props.master}
               style={{
                 fontSize: ".8rem",
                 width: "8rem",

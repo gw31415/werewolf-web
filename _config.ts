@@ -10,19 +10,9 @@ const site = lume({
 
 site.use(esbuild({
   extensions: [".ts", ".js", ".tsx", ".jsx"],
-  options: {
-    bundle: true,
-    format: "esm",
-    minify: true,
-    keepNames: false,
-    platform: "browser",
-    target: "esnext",
-    treeShaking: true,
-  },
 }));
 site.use(minify_html());
 site.use(sass());
 site.use(imagick());
-
 
 export default site;
