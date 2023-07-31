@@ -1,3 +1,5 @@
+use clap::{Parser, Subcommand};
+
 mod master_router;
 mod session;
 
@@ -25,16 +27,31 @@ async fn werewolf_ws(
     )
 }
 
+#[derive(Parser)]
+struct Args {
+    #[clap(subcommand)]
+    subcmd: SubCmd,
+}
+
+#[derive(Subcommand)]
+enum SubCmd {
+    Run,
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let server = MasterRouter::new().start();
-    HttpServer::new(move || {
-        App::new()
-            .app_data(web::Data::new(server.clone()))
-            .service(index)
-            .service(werewolf_ws)
-    })
-    .bind(("127.0.0.1", 3232))?
-    .run()
-    .await
+    match Args::parse().subcmd {
+        SubCmd::Run => {
+            let server = MasterRouter::new().start();
+            HttpServer::new(move || {
+                App::new()
+                    .app_data(web::Data::new(server.clone()))
+                    .service(index)
+                    .service(werewolf_ws)
+            })
+            .bind(("0.0.0.0", 3232))?
+            .run()
+            .await
+        }
+    }
 }
