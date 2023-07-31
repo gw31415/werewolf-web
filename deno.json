@@ -12,5 +12,8 @@
     "lume/": "https://deno.land/x/lume@v1.18.3/",
     "preact": "https://esm.sh/preact@10.13.0",
     "preact/": "https://esm.sh/preact@10.13.0/"
+  },
+  "fmt": {
+    "exclude": ["_site"]
   }
 }

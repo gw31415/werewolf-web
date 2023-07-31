@@ -41,7 +41,7 @@ export default function Icon(props: IconProps) {
             fontSize: props.size,
           }}
         >
-        ?
+          ?
         </div>
       )
   );
