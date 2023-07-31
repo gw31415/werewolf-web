@@ -25,8 +25,8 @@ export default function Members(props: MembersProps) {
                 className={css({
                   textAlign: "center",
                   paddingRight: ".5rem",
-                  height: "1em",
                   verticalAlign: "top",
+                  lineHeight: "1",
                   span: {
                     verticalAlign: "bottom",
                   },

@@ -12,7 +12,7 @@ function display(job: Job) {
 
 export interface ProfileProps {
   name: string;
-  job: Job;
+  job?: Job | undefined;
   style?:
     | string
     | JSX.CSSProperties
@@ -32,19 +32,18 @@ export default function Profile(props: ProfileProps) {
         }}
       >
         <Icon
-          style={{
-            display: "block",
-            backgroundColor: "white",
-            borderRadius: ".25rem",
-            width: "3.5rem",
-            height: "3.5rem",
-          }}
-          job="citizen"
+          size="3.5rem"
+          job={props.job}
         />
-        <div style={{ paddingLeft: ".5rem" }}>
+        <div style={{ paddingLeft: ".6rem" }}>
           <h1>{props.name}</h1>
-          <span style={{ paddingLeft: ".25em" }}>
-            役職：{display(props.job)}
+          <span
+            style={{
+              paddingLeft: ".25em",
+              visibility: props.job ? "visible" : "hidden",
+            }}
+          >
+            役職：{props.job ? display(props.job) : ""}
           </span>
         </div>
       </div>

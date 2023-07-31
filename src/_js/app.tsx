@@ -4,9 +4,10 @@ import MainContent from "./components/main_content.tsx";
 import { addErrorListener, GameComponentProps, ws } from "./ws.ts";
 
 export function App() {
+  const [loaded, setLoaded] = useState(false);
   const [members, setMembers] = useState([]);
   const [online, setOnline] = useState([]);
-  const [state, setState] = useState(null);
+  const [state, setState] = useState({ "waiting": { "config": undefined } });
   const [logined, setLogin] = useState(false);
   const [name, setName] = useState("");
   const [master, setMaster] = useState("");
@@ -49,11 +50,18 @@ export function App() {
         console.error(e);
       }
     });
+
+    ws().addEventListener("message", () => setLoaded(true), { once: true });
+    setLoaded(true);
   }, []);
   return (
-    <>
-      <Header {...props} />
-      <MainContent {...props} />
-    </>
+    loaded
+      ? (
+        <>
+          <Header {...props} />
+          <MainContent {...props} />
+        </>
+      )
+      : <></>
   );
 }

@@ -15,7 +15,11 @@ export interface GameComponentProps {
 /** 初期化済みWebSocketを返す */
 export function ws(): WebSocket {
   if (!_ws) {
-    _ws = new WebSocket("ws://localhost:3232/ws");
+    _ws = new WebSocket(
+      `${
+        location.protocol.startsWith("https") ? "wss" : "ws"
+      }://${location.hostname}:3232/ws`,
+    );
     _ws.addEventListener("open", () => {
       const token = localStorage.getItem("token");
       if (token) {

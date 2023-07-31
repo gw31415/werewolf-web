@@ -1,13 +1,8 @@
-import { JSX } from "preact/jsx-runtime";
 import { Job } from "./profile.tsx";
 
 export interface IconProps {
-  job: Job;
-  style?:
-    | string
-    | JSX.CSSProperties
-    | JSX.SignalLike<string | JSX.CSSProperties | undefined>
-    | undefined;
+  job?: Job | undefined;
+  size: string | number;
 }
 
 function ref_img(job: Job) {
@@ -19,11 +14,35 @@ function ref_img(job: Job) {
 
 export default function Icon(props: IconProps) {
   return (
-    <img
-      style={props.style}
-      height="128"
-      width="128"
-      src={ref_img(props.job)}
-    />
+    props.job
+      ? (
+        <img
+          style={{
+            display: "block",
+            borderRadius: ".25rem",
+            width: props.size,
+            height: props.size,
+          }}
+          height="128"
+          width="128"
+          src={ref_img(props.job)}
+        />
+      )
+      : (
+        <div
+          style={{
+            backgroundColor: "black",
+            borderRadius: ".25rem",
+            lineHeight: 1,
+            textAlign: "center",
+            verticalAlign: "bottom",
+            width: props.size,
+            height: props.size,
+            fontSize: props.size,
+          }}
+        >
+        ?
+        </div>
+      )
   );
 }

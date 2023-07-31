@@ -2,7 +2,10 @@ import { ContainerNode, render as preactRender } from "preact";
 import { css } from "https://esm.sh/@emotion/css@11.11.0";
 import { App } from "./_js/app.tsx";
 
-export function render(elem: HTMLDivElement) {
+export function render(
+  elem: HTMLDivElement,
+  callback?: () => void | undefined,
+) {
   elem.innerText = "";
 
   preactRender(
@@ -14,7 +17,7 @@ export function render(elem: HTMLDivElement) {
     display: "flex",
     flexDirection: "column",
     padding: "1rem",
-    height: "100dvh",
+    height: ["100vh", "100dvh"],
     "*::selection": {
       backgroundColor: "black",
     },
@@ -26,4 +29,6 @@ export function render(elem: HTMLDivElement) {
       padding: ".5rem",
     },
   });
+
+  if (callback) callback();
 }

@@ -12,7 +12,11 @@ export default function Header(props: GameComponentProps) {
             <Profile
               style={{ marginTop: ".5rem" }}
               name={props.name}
-              job="citizen"
+              job={props.state.day
+                ? props.state.day.role[props.name]
+                : (props.state.night
+                  ? props.state.night.role[props.name]
+                  : undefined)}
             />
             <Members
               online={props.online}
@@ -20,7 +24,7 @@ export default function Header(props: GameComponentProps) {
               master={props.master}
               style={{
                 fontSize: ".8rem",
-                width: "8rem",
+                width: "6.5rem",
                 minHeight: "5rem",
                 padding: ".5em",
                 borderRight: 1,
