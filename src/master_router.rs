@@ -16,7 +16,7 @@ use crate::session::{Response, ResponseErr, ResponseOk};
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Identifier {
-    Token(Token),
+    Token(String),
     Signup { name: Name, master: MasterName },
 }
 
@@ -149,7 +149,7 @@ impl Handler<Connect> for MasterRouter {
 
     fn handle(&mut self, msg: Connect, ctx: &mut Context<Self>) -> Self::Result {
         // データの取り出し
-        let (token, master, online, new_members) = match msg.id {
+        let (token, master, online, new_members, mastername, name) = match msg.id {
             Identifier::Signup {
                 name,
                 master: mastername,
@@ -158,33 +158,53 @@ impl Handler<Connect> for MasterRouter {
                 let MasterInstance { master, online } =
                     self.masters.entry(mastername.clone()).or_default();
 
-                let token = master.lock().unwrap().signup(name)?;
+                let token = master.lock().unwrap().signup(name.clone())?;
                 // routesの追加
-                self.routes.insert(token, mastername);
-
-                let new_members = Some(
-                    master
-                        .lock()
-                        .unwrap()
-                        .players()
-                        .into_iter()
-                        .map(|m| m.to_owned())
-                        .collect::<HashSet<_>>(),
-                );
-                (token, master, online, new_members)
+                self.routes.insert(token, mastername.clone());
+                (token, master, online, true, mastername, name)
             }
             Identifier::Token(token) => {
-                // 再接続
-                if let Some(mastername) = self.routes.get(&token) {
-                    let MasterInstance { online, master } =
-                        self.masters.get_mut(mastername).unwrap();
-                    (token, master, online, None)
+                use base64::Engine as _;
+                if let Ok(vec) = general_purpose::STANDARD.decode(token) {
+                    let token = {
+                        if vec.len() != 32 {
+                            // 存在の確認
+                            return Err(werewolf::master::Error::AuthenticationFailed)?;
+                        }
+                        let mut array: std::mem::MaybeUninit<[u8; 32]> =
+                            std::mem::MaybeUninit::uninit();
+                        unsafe {
+                            array
+                                .as_mut_ptr()
+                                .copy_from(vec.as_ptr() as *const [u8; 32], 32);
+                            array.assume_init()
+                        }
+                    };
+                    // 再接続
+                    if let Some(mastername) = self.routes.get(&token) {
+                        let MasterInstance { online, master } =
+                            self.masters.get_mut(mastername).unwrap();
+                        let name = master.lock().unwrap().get_name(&token).unwrap().to_owned();
+                        (token, master, online, false, mastername.to_owned(), name)
+                    } else {
+                        // 存在の確認
+                        return Err(werewolf::master::Error::AuthenticationFailed)?;
+                    }
                 } else {
                     // 存在の確認
-                    Err(werewolf::master::Error::AuthenticationFailed)?
+                    return Err(werewolf::master::Error::AuthenticationFailed)?;
                 }
             }
         };
+
+        // トークンの通知
+        use base64::{engine::general_purpose, Engine as _};
+        msg.addr
+            .do_send(Response::Success(ResponseOk::AuthenticationSuccess {
+                token: general_purpose::STANDARD.encode(token),
+                master: mastername,
+                name,
+            }));
 
         // onlineの追加
         online.insert(token, Connection::new(msg.addr));
@@ -196,11 +216,19 @@ impl Handler<Connect> for MasterRouter {
                 .map(|(m, _)| master.lock().unwrap().get_name(m).unwrap().to_owned())
                 .collect();
 
-            join_all(online.iter_mut().flat_map(|(_, addr)| {
+            let members = master
+                .lock()
+                .unwrap()
+                .players()
+                .into_iter()
+                .map(|m| m.to_owned())
+                .collect::<HashSet<_>>();
+
+            join_all(online.iter_mut().flat_map(|(key, addr)| {
                 let mut fs = vec![addr.addr.send(Response::Success(ResponseOk::Online(
                     online_members.clone(),
                 )))];
-                if let Some(members) = &new_members {
+                if new_members || key == &token {
                     // 新規メンバーがいる場合はMember一覧も通知する
                     fs.push(
                         addr.addr

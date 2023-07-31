@@ -177,6 +177,12 @@ pub enum Response {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ResponseOk {
+    /// トークンの通知
+    AuthenticationSuccess {
+        token: String,
+        name: String,
+        master: String,
+    },
     /// 状態の更新
     State(Box<State>),
     /// オンラインのメンバー一覧
