@@ -1,3 +1,3 @@
 [submodule "werewolf"]
-	path = werewolf
+	path = server/werewolf
 	url = https://github.com/gw31415/werewolf
