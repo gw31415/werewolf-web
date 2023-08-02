@@ -28,20 +28,28 @@ async fn werewolf_ws(
 }
 
 #[derive(Parser)]
-struct Args {
+struct Cli {
     #[clap(subcommand)]
     subcmd: SubCmd,
 }
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 enum SubCmd {
-    Run,
+    /// Start listening.
+    Run {
+        /// Port number to listen on.
+        #[clap(short, long, default_value_t = 3232)]
+        port: u16,
+        /// Publish to the network.
+        #[clap(long)]
+        expose: bool,
+    },
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    match Args::parse().subcmd {
-        SubCmd::Run => {
+    match Cli::parse().subcmd {
+        SubCmd::Run { port, expose } => {
             let server = MasterRouter::new().start();
             HttpServer::new(move || {
                 App::new()
@@ -49,7 +57,7 @@ async fn main() -> std::io::Result<()> {
                     .service(index)
                     .service(werewolf_ws)
             })
-            .bind(("0.0.0.0", 3232))?
+            .bind((if expose { "0.0.0.0" } else { "127.0.0.1" }, port))?
             .run()
             .await
         }
