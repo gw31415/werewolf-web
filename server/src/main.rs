@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
 
 mod master_router;
 mod session;
@@ -29,37 +29,25 @@ async fn werewolf_ws(
 
 #[derive(Parser)]
 struct Cli {
-    #[clap(subcommand)]
-    subcmd: SubCmd,
-}
-
-#[derive(Debug, Subcommand)]
-enum SubCmd {
-    /// Start listening.
-    Run {
-        /// Port number to listen on.
-        #[clap(short, long, default_value_t = 3232)]
-        port: u16,
-        /// Publish to the network.
-        #[clap(long)]
-        expose: bool,
-    },
+    /// Port number to listen on.
+    #[clap(short, long, default_value_t = 3232)]
+    port: u16,
+    /// Publish to the network.
+    #[clap(long)]
+    expose: bool,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    match Cli::parse().subcmd {
-        SubCmd::Run { port, expose } => {
-            let server = MasterRouter::new().start();
-            HttpServer::new(move || {
-                App::new()
-                    .app_data(web::Data::new(server.clone()))
-                    .service(index)
-                    .service(werewolf_ws)
-            })
-            .bind((if expose { "0.0.0.0" } else { "127.0.0.1" }, port))?
-            .run()
-            .await
-        }
-    }
+    let Cli { port, expose } = Cli::parse();
+    let server = MasterRouter::new().start();
+    HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(server.clone()))
+            .service(index)
+            .service(werewolf_ws)
+    })
+    .bind((if expose { "0.0.0.0" } else { "127.0.0.1" }, port))?
+    .run()
+    .await
 }
