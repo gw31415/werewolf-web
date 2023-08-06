@@ -1,0 +1,77 @@
+[config]
+skip_core_tasks = true
+
+[tasks.dev-server]
+description = "Launch the development environment of the server for automatic reloading."
+command = "cargo"
+args = ["watch", "-x", "run -- -p 3232"]
+cwd = "server"
+
+[tasks.dev-client]
+install_crate = { crate_name = "deno", binary = "deno", test_arg = "--version" }
+description = "Launch the development environment of the client for automatic reloading."
+command = "deno"
+args = ["task", "serve"]
+cwd = "client"
+
+[tasks.dev]
+description = "Launch the combined development environment for automatic reloading."
+dependencies = ["dev-server", "dev-client"]
+
+[tasks.build-server]
+description = "Build the server for the production environment."
+script = '''
+#!@duckscript
+exec cargo build --release
+cp target/release/werewolf-server ../dist/werewolf-server
+'''
+cwd = "server"
+
+[tasks.build-client]
+description = "Build the client for the production environment."
+command = "deno"
+args = ["task", "build"]
+cwd = "client"
+
+[tasks.build]
+description = "Build the server/client combined deliverables."
+dependencies = ["build-server", "build-client"]
+
+[tasks.clean-server]
+description = "Clean up directories of server's deliverables, etc."
+script = '''
+#!@duckscript
+exec cargo clean
+rm ../dist/werewolf-server
+list = glob_array ../dist/*
+if array_is_empty ${list}
+	rm -r ../dist
+end
+'''
+cwd = "server"
+
+[tasks.clean-client]
+description = "Clean up directories of client's deliverables, etc."
+script = '''
+#!@duckscript
+rm -r ../dist/site
+list = glob_array ../dist/*
+if array_is_empty ${list}
+	rm -r ../dist
+end
+'''
+cwd = "server"
+
+[tasks.clean]
+description = "Clean up all deliverable directories."
+dependencies = ["clean-client", "clean-server"]
+
+[tasks.default]
+alias = "dev"
+
+[tasks.upgrade]
+script = '''
+#!@duckscript
+exec rustup update
+exec deno upgrade
+'''

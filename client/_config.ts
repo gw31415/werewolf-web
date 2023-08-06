@@ -6,6 +6,7 @@ import imagick from "lume/plugins/imagick.ts";
 
 const site = lume({
   src: "./src",
+  dest: "../dist/site",
 });
 
 site.use(esbuild({
