@@ -1,5 +1,16 @@
 // deno-lint-ignore-file no-explicit-any
 
+const WS_URL = {
+  /// 開発用
+  dev: `${
+    location.protocol.startsWith("https") ? "wss" : "ws"
+  }://${location.hostname}:3232/ws`,
+  /// 本番用
+  release: `${
+    location.protocol.startsWith("https") ? "wss" : "ws"
+  }://${location.host}/ws`,
+};
+
 let _ws: WebSocket | null = null;
 
 /** サーバから受信するデータのProps */
@@ -15,11 +26,7 @@ export interface GameComponentProps {
 /** 初期化済みWebSocketを返す */
 export function ws(): WebSocket {
   if (!_ws) {
-    _ws = new WebSocket(
-      `${
-        location.protocol.startsWith("https") ? "wss" : "ws"
-      }://${location.hostname}:3232/ws`,
-    );
+    _ws = new WebSocket(WS_URL.dev);
     _ws.addEventListener("open", () => {
       const token = localStorage.getItem("token");
       if (token) {

@@ -9,8 +9,21 @@ const site = lume({
   dest: "../dist/site",
 });
 
+const define = Deno.env.get("TARGET") !== "RELEASE"
+  ? {
+    // 開発用
+    "WS_URL.dev": "WS_URL.dev",
+  }
+  : {
+    // 本番用
+    "WS_URL.dev": "WS_URL.release",
+  };
+
 site.use(esbuild({
   extensions: [".ts", ".js", ".tsx", ".jsx"],
+  options: {
+    define,
+  },
 }));
 site.use(minify_html());
 site.use(sass());

@@ -1,6 +1,9 @@
 [config]
 skip_core_tasks = true
 
+[tasks.default]
+alias = "dev"
+
 [tasks.dev-server]
 description = "Launch the development environment of the server for automatic reloading."
 command = "cargo"
@@ -8,15 +11,19 @@ args = ["watch", "-x", "run -- -p 3232"]
 cwd = "server"
 
 [tasks.dev-client]
-install_crate = { crate_name = "deno", binary = "deno", test_arg = "--version" }
 description = "Launch the development environment of the client for automatic reloading."
+install_crate = { crate_name = "deno", binary = "deno", test_arg = "--version" }
 command = "deno"
 args = ["task", "serve"]
 cwd = "client"
 
 [tasks.dev]
 description = "Launch the combined development environment for automatic reloading."
-dependencies = ["dev-server", "dev-client"]
+script = '''
+#!@duckscript
+cm_run_task --async dev-server
+cm_run_task dev-client
+'''
 
 [tasks.build-server]
 description = "Build the server for the production environment."
@@ -29,6 +36,7 @@ cwd = "server"
 
 [tasks.build-client]
 description = "Build the client for the production environment."
+env = { TARGET = "RELEASE" }
 command = "deno"
 args = ["task", "build"]
 cwd = "client"
@@ -65,13 +73,3 @@ cwd = "server"
 [tasks.clean]
 description = "Clean up all deliverable directories."
 dependencies = ["clean-client", "clean-server"]
-
-[tasks.default]
-alias = "dev"
-
-[tasks.upgrade]
-script = '''
-#!@duckscript
-exec rustup update
-exec deno upgrade
-'''

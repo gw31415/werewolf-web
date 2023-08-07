@@ -4,15 +4,10 @@ mod master_router;
 mod session;
 
 use actix::{Actor, Addr};
-use actix_files::NamedFile;
-use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, HttpServer, Responder};
+use actix_files::Files;
+use actix_web::{get, web, App, Error, HttpRequest, HttpResponse, HttpServer};
 use actix_web_actors::ws;
 use master_router::MasterRouter;
-
-#[get("/")]
-async fn index() -> impl Responder {
-    NamedFile::open_async("./index.html").await.unwrap()
-}
 
 #[get("/ws")]
 async fn werewolf_ws(
@@ -35,17 +30,28 @@ struct Cli {
     /// Publish to the network.
     #[clap(long)]
     expose: bool,
+    /// Path of the directory where the static files to be delivered are located.
+    #[clap(long)]
+    serve: Option<String>,
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    let Cli { port, expose } = Cli::parse();
+    let Cli {
+        port,
+        expose,
+        serve,
+    } = Cli::parse();
     let server = MasterRouter::new().start();
     HttpServer::new(move || {
-        App::new()
+        let app = App::new()
             .app_data(web::Data::new(server.clone()))
-            .service(index)
-            .service(werewolf_ws)
+            .service(werewolf_ws);
+        if let Some(dir) = &serve {
+            app.service(Files::new("/", dir).index_file("index.html"))
+        } else {
+            app
+        }
     })
     .bind((if expose { "0.0.0.0" } else { "127.0.0.1" }, port))?
     .run()
